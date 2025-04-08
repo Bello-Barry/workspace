@@ -7,62 +7,36 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductCard from "@/components/ProductCard";
 import CategoryNav from "@/components/CategoryNav";
-import { toast } from "react-toastify"
+import { toast } from "react-toastify";
 
 const LandingPage = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tous");
   const [isLoading, setIsLoading] = useState(true);
 
+  // Catégories alimentaires
+  const FOOD_CATEGORIES = [
+    "Tous",
+    "Fruits",
+    "Légumes",
+    "Produits Laitiers",
+    "Boulangerie",
+  ];
+
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
       try {
         setIsLoading(true);
-        
+
         const { data, error } = await supabase
           .from("products")
-          .select(`
-            id,
-            name,
-            description,
-            price,
-            stock,
-            images,
-            metadata
-          `)
+          .select("*")
           .order("created_at", { ascending: false });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        if (!data) {
-          throw new Error("Aucune donnée reçue");
-        }
-
-        // Validation et formatage des données
-        const formattedProducts = data.map(product => {
-          const defaultMetadata = {
-            fabricType: "Non catégorisé",
-            fabricSubtype: "",
-            unit: "mètre"
-          };
-
-          return {
-            ...product,
-            metadata: {
-              ...defaultMetadata,
-              ...(product.metadata || {})
-            },
-            images: Array.isArray(product.images) ? product.images : [],
-            price: Number(product.price) || 0,
-            stock: Number(product.stock) || 0
-          };
-        });
-
-        setFeaturedProducts(formattedProducts as Product[]);
+        setFeaturedProducts(data as Product[]);
       } catch (error) {
-        console.error("Erreur lors du chargement des produits :", error);
         toast.error("Erreur lors du chargement des produits");
       } finally {
         setIsLoading(false);
@@ -72,9 +46,10 @@ const LandingPage = () => {
     fetchFeaturedProducts();
   }, []);
 
-  const filteredProducts = selectedCategory === "Tous"
-    ? featuredProducts
-    : featuredProducts.filter(p => p.metadata.fabricType === selectedCategory);
+  const filteredProducts =
+    selectedCategory === "Tous"
+      ? featuredProducts
+      : featuredProducts.filter((p) => p.category === selectedCategory);
 
   if (isLoading) {
     return (
@@ -86,8 +61,8 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen">
-      <CategoryNav 
-        products={featuredProducts}
+      <CategoryNav
+        categories={FOOD_CATEGORIES}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
       />
@@ -95,11 +70,11 @@ const LandingPage = () => {
       <section className="py-16">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
-            {selectedCategory === "Tous" 
-              ? "Tous nos produits" 
-              : `Produits en ${selectedCategory}`}
+            {selectedCategory === "Tous"
+              ? "Tous nos produits alimentaires"
+              : `Produits ${selectedCategory}`}
           </h2>
-          
+
           {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredProducts.map((product) => (

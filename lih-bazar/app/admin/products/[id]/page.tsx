@@ -8,45 +8,36 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "react-toastify";
-import ProductGallery from "@/components/ui/ProductGallery";
-import ProductDetails from "@/components/ui/ProductDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import ImageUploader from "@/components/ImageUploader";
 
 const schema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  description: z.string().min(1, "La description est requise"),
-  price: z.coerce.number().min(0.1, "Le prix doit être positif"),
-  stock: z.coerce.number().min(0, "Le stock doit être positif"),
-  fabricType: z.string().min(1, "Type de tissu requis"),
-  fabricSubtype: z.string().optional(),
-  unit: z.enum(["mètre", "rouleau"]),
-  images: z.array(z.string().url()).min(1, "Au moins une image requise")
+  name: z.string().min(1, "Nom requis"),
+  description: z.string().min(1, "Description requise"),
+  price: z.coerce.number().min(0.1, "Prix invalide"),
+  stock: z.coerce.number().min(0, "Stock invalide"),
+  category: z.string().min(1, "Catégorie requise"),
+  images: z.array(z.string()).min(1, "Au moins une image"),
 });
 
 type ProductFormData = z.infer<typeof schema>;
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  fabricType: string;
-  fabricSubtype?: string;
-  unit: "mètre" | "rouleau";
-  images: string[];
-}
-
 export default function ProductDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ProductFormData>({
-    resolver: zodResolver(schema)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+  } = useForm<ProductFormData>({
+    resolver: zodResolver(schema),
   });
 
   useEffect(() => {
@@ -57,122 +48,103 @@ export default function ProductDetailPage() {
         .eq("id", id)
         .single();
 
-      if (error) {
-        toast.error("Erreur lors du chargement du produit");
-        console.error(error);
-      } else if (data) {
+      if (data) {
         setProduct(data);
-        reset({
-          ...data,
-          fabricSubtype: data.fabricSubtype || ""
-        });
+        setValue("name", data.name);
+        setValue("description", data.description);
+        setValue("price", data.price);
+        setValue("stock", data.stock);
+        setValue("category", data.category);
+        setUploadedImages(data.images);
       }
     };
 
     fetchProduct();
-  }, [id, reset]);
+  }, [id, setValue]);
 
   const onSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
     try {
       const { error } = await supabase
         .from("products")
-        .update({
-          ...data,
-          fabricSubtype: data.fabricSubtype || null
-        })
+        .update({ ...data, images: uploadedImages })
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Produit mis à jour avec succès");
+      toast.success("Produit mis à jour");
       router.push("/admin/products");
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour");
-      console.error(error);
+      toast.error("Erreur de mise à jour");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!product) {
-    return <div className="text-center p-8">Chargement en cours...</div>;
-  }
+  if (!product) return <div className="text-center p-8">Chargement...</div>;
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <Card>
         <CardHeader>
-          <CardTitle>Modifier le produit</CardTitle>
+          <CardTitle>Éditer le produit</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductGallery 
-            images={product.images} 
-            alt={`Galerie - ${product.name}`}
-          />
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Nom du produit</label>
-                <Input
-                  {...register("name")}
-                  defaultValue={product.name}
-                />
-                {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                <label>Nom du produit</label>
+                <Input {...register("name")} />
+                {errors.name && (
+                  <p className="text-red-500">{errors.name.message}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Prix</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  {...register("price")}
-                  defaultValue={product.price}
-                />
-                {errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
+                <label>Prix (FCFA)</label>
+                <Input type="number" {...register("price")} />
+                {errors.price && (
+                  <p className="text-red-500">{errors.price.message}</p>
+                )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
-              <Textarea
-                {...register("description")}
-                defaultValue={product.description}
-                rows={4}
+              <label>Description</label>
+              <Textarea {...register("description")} rows={4} />
+              {errors.description && (
+                <p className="text-red-500">{errors.description.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label>Stock</label>
+                <Input type="number" {...register("stock")} />
+                {errors.stock && (
+                  <p className="text-red-500">{errors.stock.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label>Catégorie</label>
+                <Input {...register("category")} />
+                {errors.category && (
+                  <p className="text-red-500">{errors.category.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label>Images</label>
+              <ImageUploader
+                onUpload={setUploadedImages}
+                initialImages={product.images}
+                maxFiles={5}
               />
-              {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Stock</label>
-                <Input
-                  type="number"
-                  {...register("stock")}
-                  defaultValue={product.stock}
-                />
-                {errors.stock && <p className="text-red-500 text-sm">{errors.stock.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Type de tissu</label>
-                <Input
-                  {...register("fabricType")}
-                  defaultValue={product.fabricType}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Variante</label>
-                <Input
-                  {...register("fabricSubtype")}
-                  defaultValue={product.fabricSubtype || ""}
-                />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Mise à jour en cours..." : "Mettre à jour le produit"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Enregistrement..." : "Enregistrer"}
             </Button>
           </form>
         </CardContent>

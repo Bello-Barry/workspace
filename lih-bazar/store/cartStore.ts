@@ -6,11 +6,6 @@ interface CartItem {
   price: number;
   quantity: number;
   images: string[];
-  metadata: {
-    fabricType: string;
-    fabricSubtype: string;
-    unit: "mètre" | "rouleau";
-  };
 }
 
 interface CartState {
@@ -23,21 +18,19 @@ interface CartState {
 
 export const useCartStore = create<CartState>((set) => ({
   cartItems: [],
-  
+
   addToCart: (item) =>
     set((state) => {
       const existingItem = state.cartItems.find((i) => i.id === item.id);
-      
-      if (existingItem) {
-        return {
-          cartItems: state.cartItems.map((i) =>
-            i.id === item.id 
-              ? { ...i, quantity: i.quantity + item.quantity }
-              : i
-          )
-        };
-      }
-      return { cartItems: [...state.cartItems, item] };
+      return existingItem
+        ? {
+            cartItems: state.cartItems.map((i) =>
+              i.id === item.id
+                ? { ...i, quantity: i.quantity + item.quantity }
+                : i
+            ),
+          }
+        : { cartItems: [...state.cartItems, item] };
     }),
 
   removeFromCart: (id) =>
@@ -48,7 +41,7 @@ export const useCartStore = create<CartState>((set) => ({
   updateQuantity: (id, quantity) =>
     set((state) => ({
       cartItems: state.cartItems.map((item) =>
-        item.id === id ? { ...item, quantity } : item
+        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
       ),
     })),
 

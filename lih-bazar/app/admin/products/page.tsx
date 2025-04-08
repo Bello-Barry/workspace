@@ -12,94 +12,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-toastify";
 import Link from "next/link";
-import Image from "next/image";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  ArrowUpDown,
-  Loader2,
-  ImageOff,
-} from "lucide-react";
+import { Trash2, Search, Loader2 } from "lucide-react";
 
 interface Product {
   id: string;
   name: string;
-  description: string;
   price: number;
   stock: number;
-  type: string;
-  subtype?: string;
+  category: string;
   images: string[];
-  created_at: string;
 }
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [sortField, setSortField] = useState<keyof Product>("created_at");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      if (!supabase) {
-        throw new Error("Connexion à la base de données échouée.");
-      }
-
-      let query = supabase
+      const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order(sortField, { ascending: sortDirection === "asc" });
+        .ilike("name", `%${searchTerm}%`);
 
-      if (filterType !== "all") {
-        query = query.eq("type", filterType);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw new Error(error.message || "Erreur lors de la récupération.");
-      }
-
+      if (error) throw error;
       setProducts(data || []);
     } catch (error) {
-      toast.error(
-        `Erreur lors du chargement : ${
-          error instanceof Error ? error.message : "Inconnue"
-        }`
-      );
+      toast.error("Erreur lors du chargement");
     } finally {
       setLoading(false);
     }
@@ -107,52 +51,19 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [filterType, sortField, sortDirection]);
+  }, [searchTerm]);
 
   const handleDelete = async (id: string) => {
     try {
-      const productToDelete = products.find((p) => p.id === id);
-      if (!productToDelete) throw new Error("Produit introuvable.");
+      const { error } = await supabase.from("products").delete().eq("id", id);
 
-      if (productToDelete.images?.length) {
-        for (const imageUrl of productToDelete.images) {
-          const imagePath = imageUrl.split("/").pop();
-          if (imagePath) {
-            await supabase.storage.from("images").remove([imagePath]);
-          }
-        }
-      }
+      if (error) throw error;
 
-      const { error: deleteError } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id);
-
-      if (deleteError) throw deleteError;
-
-      setProducts((prev) => prev.filter((product) => product.id !== id));
-      toast.success("Produit supprimé avec succès.");
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Produit supprimé");
     } catch (error) {
-      toast.error(
-        `Erreur lors de la suppression : ${
-          error instanceof Error ? error.message : "Inconnue"
-        }`
-      );
+      toast.error("Erreur lors de la suppression");
     }
-  };
-
-  const toggleSort = (field: keyof Product) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: keyof Product) => {
-    if (field !== sortField) return <ArrowUpDown className="h-4 w-4" />;
-    return sortDirection === "asc" ? "↑" : "↓";
   };
 
   return (
@@ -167,31 +78,18 @@ export default function AdminProductsPage() {
               </CardDescription>
             </div>
             <Link href="/admin/products/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Ajouter un produit
-              </Button>
+              <Button>Ajouter un produit</Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="mb-6">
             <Input
               placeholder="Rechercher..."
-              className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              icon={<Search className="h-4 w-4" />}
             />
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrer par type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="soie">Soie</SelectItem>
-                <SelectItem value="bazin">Bazin</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {loading ? (
@@ -199,53 +97,42 @@ export default function AdminProductsPage() {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nom {getSortIcon("name")}</TableHead>
-                    <TableHead>Type {getSortIcon("type")}</TableHead>
-                    <TableHead>Prix {getSortIcon("price")}</TableHead>
-                    <TableHead>Stock {getSortIcon("stock")}</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>{product.name}</TableCell>
-                      <TableCell>{product.type}</TableCell>
-                      <TableCell>{product.price}€</TableCell>
-                      <TableCell>{product.stock}</TableCell>
-                      <TableCell className="text-right space-x-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Catégorie</TableHead>
+                  <TableHead>Prix</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell>
+                      <Badge>{product.category}</Badge>
+                    </TableCell>
+                    <TableCell>{product.price} FCFA</TableCell>
+                    <TableCell>{product.stock}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
                         <Link href={`/admin/products/${product.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <Button variant="outline">Éditer</Button>
                         </Link>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(product.id)}
-                              >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleDelete(product.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
