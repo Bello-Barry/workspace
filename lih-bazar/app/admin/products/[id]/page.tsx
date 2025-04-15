@@ -138,7 +138,7 @@ export default function ProductDetailPage() {
               <label>Images</label>
               <ImageUploader 
   onUpload={(urls) => setImages(urls)} // Assurez-vous que cette fonction est définie
-  bucket="your-bucket-name" // Ceci est requis selon l'interface ImageUploaderProps
+  bucket="images" // Ceci est requis selon l'interface ImageUploaderProps
   maxFiles={5} // Optionnel, par défaut à 5
 />
             </div>
