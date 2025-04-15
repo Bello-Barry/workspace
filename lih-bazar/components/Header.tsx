@@ -46,7 +46,7 @@ export default function Header() {
             href="/"
             className="text-xl font-bold text-foreground hover:opacity-80 transition-opacity"
           >
-            lih-bazar
+            lia-bazar
           </Link>
         </div>
 
