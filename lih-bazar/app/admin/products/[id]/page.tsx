@@ -136,11 +136,11 @@ export default function ProductDetailPage() {
 
             <div>
               <label>Images</label>
-             <ImageUploader
-  onUpload={...}
-  bucket="images"
-  maxFiles={5}
-/>
+            <ImageUploader
+          onUpload={(urls) => field.onChange(urls.join(','))}
+          bucket="images"
+          maxFiles={5}
+        />
             </div>
 
             <Button type="submit" disabled={isSubmitting}>
