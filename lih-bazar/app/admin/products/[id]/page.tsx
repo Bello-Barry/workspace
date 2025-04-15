@@ -19,7 +19,7 @@ const schema = z.object({
   price: z.coerce.number().min(0.1, "Prix invalide"),
   stock: z.coerce.number().min(0, "Stock invalide"),
   category: z.string().min(1, "Catégorie requise"),
-  images: z.array(z.string()).min(1, "Au moins une image"),
+  images: z.string().min(1, "Au moins une image est requise"), 
 });
 
 type ProductFormData = z.infer<typeof schema>;
@@ -29,7 +29,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<any[]>([]);
 
   const {
     register,
@@ -136,11 +136,11 @@ export default function ProductDetailPage() {
 
             <div>
               <label>Images</label>
-            <ImageUploader
-          onUpload={(urls) => field.onChange(urls.join(','))}
-          bucket="images"
-          maxFiles={5}
-        />
+              <ImageUploader
+                onUpload={setUploadedImages}
+                initialImages={product.images}
+                maxFiles={5}
+              />
             </div>
 
             <Button type="submit" disabled={isSubmitting}>
