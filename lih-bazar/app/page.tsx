@@ -8,11 +8,14 @@ import { toast } from "react-toastify";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const FOOD_CATEGORIES = [
-  "Tous",
-  "Fruits",
-  "Légumes",
-  "Produits Laitiers",
-  "Boulangerie",
+    "Santé",
+  "Vêtements",
+  "Alimentation",
+  "Maison",
+  "Beauté",
+  "Sports",
+  "Jouets",
+  "Autre",
 ];
 
 export default function LandingPage() {
