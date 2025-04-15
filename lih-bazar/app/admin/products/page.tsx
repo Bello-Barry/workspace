@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import Link from "next/link";
 import { Trash2, Search, Loader2 } from "lucide-react";
 
@@ -37,8 +37,10 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const fetchProducts = async () => {
+  // Utiliser useCallback pour éviter des rendus inutiles
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -48,16 +50,39 @@ export default function AdminProductsPage() {
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error) {
-      toast.error("Erreur lors du chargement");
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement: " + (error.message || "Erreur inconnue"));
     } finally {
       setLoading(false);
     }
+  }, [searchTerm]);
+
+  // Implémenter un debounce pour la recherche
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      fetchProducts();
+    }, 500);
+    
+    setDebounceTimeout(timeout);
   };
 
   useEffect(() => {
     fetchProducts();
-  }, [searchTerm]);
+    
+    // Nettoyer le timeout lors du démontage
+    return () => {
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  }, []);
 
   const handleDelete = async (id: string) => {
     try {
@@ -66,14 +91,15 @@ export default function AdminProductsPage() {
       if (error) throw error;
 
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Produit supprimé");
-    } catch (error) {
-      toast.error("Erreur lors de la suppression");
+      toast.success("Produit supprimé avec succès");
+    } catch (error: any) {
+      toast.error("Erreur lors de la suppression: " + (error.message || "Erreur inconnue"));
     }
   };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <ToastContainer />
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -89,56 +115,77 @@ export default function AdminProductsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6">
-            <Input
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              icon={<Search className="h-4 w-4" />}
-            />
+          <div className="mb-6 relative">
+            <div className="relative">
+              <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <Input
+                placeholder="Rechercher un produit..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10"
+              />
+            </div>
           </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : products.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Catégorie</TableHead>
+                    <TableHead>Prix</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{product.category}</Badge>
+                      </TableCell>
+                      <TableCell>{product.price.toLocaleString()} FCFA</TableCell>
+                      <TableCell>
+                        {product.stock > 0 ? (
+                          <span className="text-green-600">{product.stock}</span>
+                        ) : (
+                          <span className="text-red-600">Épuisé</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Link href={`/admin/products/${product.id}`}>
+                            <Button variant="outline" size="sm">Éditer</Button>
+                          </Link>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(product.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Catégorie</TableHead>
-                  <TableHead>Prix</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>
-                      <Badge>{product.category}</Badge>
-                    </TableCell>
-                    <TableCell>{product.price} FCFA</TableCell>
-                    <TableCell>{product.stock}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Link href={`/admin/products/${product.id}`}>
-                          <Button variant="outline">Éditer</Button>
-                        </Link>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDelete(product.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="text-center py-10 text-gray-500">
+              Aucun produit trouvé. Essayez de modifier votre recherche ou 
+              <Link href="/admin/products/new" className="text-primary hover:underline ml-1">
+                ajoutez un nouveau produit
+              </Link>.
+            </div>
           )}
         </CardContent>
       </Card>
