@@ -53,17 +53,17 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const handleAddToCart = () => {
     if (quantity > product.stock) {
-      toast.error(`Stock insuffisant (${product.stock} disponibles)`);
-      return;
-    }
+    toast.error(`Stock insuffisant (${product.stock} disponibles)`);
+    return;
+  }
 
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      quantity,
-      images: product.images,
-    });
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    quantity: quantity, // Maintenant accepté par le store
+    images: product.images
+  });
 
     toast.success(
       <div className="flex items-center">
