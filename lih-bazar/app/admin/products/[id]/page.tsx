@@ -136,11 +136,11 @@ export default function ProductDetailPage() {
 
             <div>
               <label>Images</label>
-              <ImageUploader
-                onUpload={setUploadedImages}
-                initialImages={product.images}
-                maxFiles={5}
-              />
+              <ImageUploader 
+  onUpload={(urls) => setImages(urls)} // Assurez-vous que cette fonction est définie
+  bucket="your-bucket-name" // Ceci est requis selon l'interface ImageUploaderProps
+  maxFiles={5} // Optionnel, par défaut à 5
+/>
             </div>
 
             <Button type="submit" disabled={isSubmitting}>
