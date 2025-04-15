@@ -29,6 +29,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+const [images, setImages] = useState<string[]>(product?.images || []);
   const [uploadedImages, setUploadedImages] = useState<any[]>([]);
 
   const {
