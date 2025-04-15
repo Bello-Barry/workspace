@@ -10,8 +10,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Mbaka Textile - Votre boutique de tissus premium en ligne",
-    template: "%s | Mbaka Textile",
+    default: "Lih_Bazar - Votre boutique  en ligne",
+    template: "%s | Lih-bazar",
   },
   description:
     "Découvrez notre large sélection de tissus haut de gamme : bazin, soie, coton, wax et plus. Commandez en ligne et profitez de la livraison rapide !",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "tissus pour couture",
   ],
   openGraph: {
-    title: "Mbaka Textile - Votre boutique de tissus premium en ligne",
+    title: "lih-bazar - Votre boutique de tissus premium en ligne",
     description:
       "Découvrez notre large sélection de tissus haut de gamme. Commandez en ligne et profitez de la livraison rapide !",
     url: "https://best-textile.vercel.app/",
@@ -148,7 +148,7 @@ export default function RootLayout({
         <link rel="/" href="/web-app-manifest-512x512.png" sizes="144x144" type="image/png" />
         <link rel="/" href="/web-app-manifest-512x512.png" sizes="192x192" type="image/png" />
         <link rel="/" href="/web-app-manifest-512x512.png" sizes="512x512" type="image/png" />
-        <title>Mbaka Textile</title>
+        <title>Lih bazar</title>
       </head> 
       <body className={inter.className}>
         <ThemeProvider

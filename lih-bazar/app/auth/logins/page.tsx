@@ -231,7 +231,6 @@ const AuthPage = () => {
           <CardContent>
             {formState.showForgotPassword ? (
               <form onSubmit={handleForgotPassword} className="space-y-4">
-                {/* Formulaire de réinitialisation du mot de passe */}
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <Input
@@ -281,7 +280,6 @@ const AuthPage = () => {
 
                 <TabsContent value="login">
                   <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Formulaire de connexion */}
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                       <Input
@@ -352,7 +350,6 @@ const AuthPage = () => {
 
                 <TabsContent value="register">
                   <form onSubmit={handleRegister} className="space-y-4">
-                    {/* Formulaire d'inscription */}
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                       <Input
@@ -400,9 +397,13 @@ const AuthPage = () => {
                     <div className="relative">
                       <Building className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                       <Select
-                        defaultValue="client"
-                        disabled={true}
                         value={registerData.role}
+                        onValueChange={(value: "client" | "admin") => {
+                          setRegisterData({
+                            ...registerData,
+                            role: value,
+                          });
+                        }}
                       >
                         <SelectTrigger className="pl-10">
                           <SelectValue placeholder="Sélectionnez un rôle" />
@@ -459,4 +460,4 @@ const AuthPage = () => {
   );
 };
 
-export default AuthPage;
+export default AuthPage; 

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { Product } from "@/types/product";
@@ -22,6 +21,25 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const [quantity, setQuantity] = useState(1);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Convertir les images en tableau et valider les URLs
+  const productImages = typeof product.images === 'string' 
+    ? product.images.split(',') 
+    : Array.isArray(product.images) 
+      ? product.images 
+      : [];
+
+  const validImages = productImages.filter(img => {
+    try {
+      new URL(img);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  const hasImages = validImages.length > 0;
+  const currentImage = hasImages ? validImages[currentImageIndex] : '';
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fr-FR", {
@@ -56,6 +74,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
     );
   };
 
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % validImages.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? validImages.length - 1 : prev - 1
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -63,14 +91,50 @@ const ProductCard = ({ product }: ProductCardProps) => {
       className="h-full"
     >
       <Card className="h-full flex flex-col">
-        <div className="relative aspect-square">
-          <Image
-            src={product.images[currentImageIndex]}
-            alt={product.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
+        <div className="relative aspect-square bg-gray-100">
+          {hasImages ? (
+            <>
+              <Image
+                src={currentImage}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = '/placeholder-product.jpg';
+                }}
+              />
+              
+              {validImages.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prevImage();
+                    }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full shadow"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nextImage();
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-1 rounded-full shadow"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              Image non disponible
+            </div>
+          )}
         </div>
 
         <CardHeader>
@@ -82,7 +146,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
         <CardContent className="mt-auto">
           <div className="flex flex-col gap-4">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground line-clamp-3">
               {product.description}
             </div>
 
@@ -94,6 +158,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
                   setQuantity(Math.max(1, Number(e.target.value)))
                 }
                 min={1}
+                max={product.stock}
                 className="w-20 text-center"
               />
 

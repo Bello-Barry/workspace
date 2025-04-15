@@ -11,7 +11,8 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  isAuthenticated: boolean; // Nouvelle propriété ajoutée
+  isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (
     name: string,
@@ -26,155 +27,153 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isAuthenticated: false, // Initialisation de isAuthenticated
+  isAuthenticated: false,
+  isLoading: false,
 
   login: async (email, password) => {
+  set({ isLoading: true });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    // Récupération du profil avec un seul résultat
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user?.id)
+      .single();
+
+    if (profileError) throw profileError;
+
+    set({
+      user: {
+        id: data.user?.id!,
+        name: profile.name,
+        email: data.user?.email!,
+        role: profile.role,
+      },
+      isAuthenticated: true,
+    });
+
+    toast.success("Connexion réussie !");
+  } catch (error: any) {
+    toast.error(error.message || "Email ou mot de passe incorrect");
+  } finally {
+    set({ isLoading: false });
+  }
+},
+
+  register: async (name, email, password, role) => {
+    set({ isLoading: true });
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name,
+            role,
+          },
+        },
       });
 
-      if (error) {
-        toast.error("Erreur lors de la connexion : " + error.message);
-        return;
-      }
+      if (error) throw error;
 
-      const { data: profile, error: profileError } = await supabase
+      // Le trigger handle_new_user créera automatiquement le profil
+      // Mais on peut aussi le faire manuellement pour être sûr
+      const { error: profileError } = await supabase
         .from("profiles")
-        .select("*")
-        .eq("id", data.user?.id)
-        .single();
+        .upsert({
+          id: data.user?.id,
+          name,
+          email,
+          role,
+        });
 
-      if (profileError) {
-        toast.error(
-          "Erreur lors de la récupération du profil : " + profileError.message
-        );
-        return;
-      }
+      if (profileError) throw profileError;
 
       set({
         user: {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role,
+          id: data.user?.id!,
+          name,
+          email,
+          role,
         },
-        isAuthenticated: true, // Mise à jour de isAuthenticated lors de la connexion
+        isAuthenticated: true,
+        isLoading: false,
       });
-      toast.success("Connexion réussie !");
-    } catch (error) {
-      toast.error("Une erreur est survenue lors de la connexion.");
-    }
-  },
 
-  register: async (name, email, password, role) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-
-      if (error) {
-        toast.error("Erreur lors de l'inscription : " + error.message);
-        return;
-      }
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([{ id: data.user?.id, name, email, role }]);
-
-      if (profileError) {
-        toast.error(
-          "Erreur lors de la création du profil : " + profileError.message
-        );
-        return;
-      }
-
-      set({
-        user: { id: data.user?.id!, name, email, role },
-        isAuthenticated: true, // Mise à jour de isAuthenticated lors de l'inscription
-      });
-      toast.success("Inscription réussie !");
-    } catch (error) {
-      toast.error("Une erreur est survenue lors de l'inscription.");
+      toast.success("Inscription réussie ! Vérifiez votre email.");
+    } catch (error: any) {
+      set({ isLoading: false });
+      toast.error(error.message || "Erreur lors de l'inscription");
     }
   },
 
   logout: async () => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        toast.error("Erreur lors de la déconnexion : " + error.message);
-        return;
-      }
+      if (error) throw error;
 
       set({
         user: null,
-        isAuthenticated: false, // Mise à jour de isAuthenticated lors de la déconnexion
+        isAuthenticated: false,
+        isLoading: false,
       });
-      toast.success("Déconnexion réussie.");
-    } catch (error) {
-      toast.error("Une erreur est survenue lors de la déconnexion.");
+      toast.success("Déconnexion réussie");
+    } catch (error: any) {
+      set({ isLoading: false });
+      toast.error(error.message || "Erreur lors de la déconnexion");
     }
   },
 
   fetchUser: async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await supabase.auth.getUser();
+      
       if (user) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single();
 
-        if (profileError) {
-          toast.error(
-            "Erreur lors de la récupération du profil : " + profileError.message
-          );
-          return;
-        }
+        if (error) throw error;
 
         set({
           user: {
-            id: profile.id,
+            id: user.id,
             name: profile.name,
-            email: profile.email,
+            email: user.email!,
             role: profile.role,
           },
-          isAuthenticated: true, // Mise à jour de isAuthenticated lors de la récupération
+          isAuthenticated: true,
         });
       }
     } catch (error) {
-      toast.error(
-        "Une erreur est survenue lors de la récupération de l'utilisateur."
-      );
+      set({ isAuthenticated: false, user: null });
     }
   },
 
   resetPassword: async (email) => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
 
-      if (error) {
-        toast.error(
-          "Erreur lors de la réinitialisation du mot de passe : " +
-            error.message
-        );
-        return;
-      }
+      if (error) throw error;
 
-      toast.success(
-        "Un lien de réinitialisation a été envoyé à votre adresse email."
-      );
-    } catch (error) {
-      toast.error(
-        "Une erreur est survenue lors de la réinitialisation du mot de passe."
-      );
+      toast.success("Lien de réinitialisation envoyé à votre email");
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'envoi du lien");
+    } finally {
+      set({ isLoading: false });
     }
   },
 }));
